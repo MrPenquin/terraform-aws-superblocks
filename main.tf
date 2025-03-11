@@ -16,7 +16,7 @@ resource "null_resource" "agent_key_sha" {
 resource "aws_secretsmanager_secret" "agent_key" {
   count = var.superblocks_agent_key_from == null ? 1 : 0
 
-  name = "superblocks/agent_key"
+  name = "superblocks/agent/key"
 }
 
 resource "aws_secretsmanager_secret_version" "agent_key" {
