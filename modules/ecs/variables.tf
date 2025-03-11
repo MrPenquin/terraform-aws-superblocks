@@ -50,6 +50,11 @@ variable "container_environment" {
   default = []
 }
 
+variable "container_secrets" {
+  type    = list(map(string))
+  default = []
+}
+
 variable "container_port_http" {
   type    = number
   default = "8080"

@@ -29,6 +29,7 @@ locals {
       }
     }
     environment = var.container_environment
+    secrets     = var.container_secrets
   }
 }
 
@@ -179,10 +180,10 @@ resource "aws_appautoscaling_policy" "cpu" {
 }
 
 module "ecs_security_group" {
-  count   = var.create_sg ? 1 : 0
-  source  = "../security-group"
-  name    = "${var.name_prefix}-ecs-sg"
-  vpc_id  = var.vpc_id
+  count  = var.create_sg ? 1 : 0
+  source = "../security-group"
+  name   = "${var.name_prefix}-ecs-sg"
+  vpc_id = var.vpc_id
   ingress_with_source_security_group_id = flatten([
     for sg_id in var.load_balancer_sg_ids : [
       {
