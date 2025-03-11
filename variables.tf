@@ -5,9 +5,15 @@ variable "superblocks_agent_key" {
   type      = string
   sensitive = true
   validation {
-    condition     = length(var.superblocks_agent_key) > 10
+    condition     = var.superblocks_agent_key == null ? true : length(var.superblocks_agent_key) > 10
     error_message = "The agent key is invalid."
   }
+}
+
+variable "superblocks_agent_key_from" {
+  type     = string
+  default  = null
+  nullable = true
 }
 
 variable "superblocks_agent_environment" {

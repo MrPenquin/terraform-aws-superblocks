@@ -6,17 +6,23 @@ locals {
 # Secrets Manager
 #################################################################
 resource "null_resource" "agent_key_sha" {
+  count = var.superblocks_agent_key_from == null ? 1 : 0
+
   triggers = {
     agent_key = nonsensitive(sha512(var.superblocks_agent_key))
   }
 }
 
 resource "aws_secretsmanager_secret" "agent_key" {
+  count = var.superblocks_agent_key_from == null ? 1 : 0
+
   name = "superblocks/agent_key"
 }
 
 resource "aws_secretsmanager_secret_version" "agent_key" {
-  secret_id                = aws_secretsmanager_secret.agent_key.id
+  count = var.superblocks_agent_key_from == null ? 1 : 0
+
+  secret_id                = aws_secretsmanager_secret.agent_key[1].id
   secret_string_wo         = var.superblocks_agent_key
   secret_string_wo_version = 1
 
@@ -26,6 +32,8 @@ resource "aws_secretsmanager_secret_version" "agent_key" {
 }
 
 resource "aws_iam_policy" "agent_key_policy" {
+  count = var.superblocks_agent_key_from == null ? 1 : 0
+
   name        = "superblocks-agent-secrets-access"
   description = "Allow access to Superblocks agent secret"
 
@@ -37,7 +45,7 @@ resource "aws_iam_policy" "agent_key_policy" {
           "secretsmanager:GetSecretValue",
         ]
         Effect   = "Allow"
-        Resource = aws_secretsmanager_secret.agent_key.arn
+        Resource = aws_secretsmanager_secret.agent_key[1].arn
       }
     ]
   })
@@ -105,11 +113,8 @@ module "ecs" {
   target_group_http_arns = local.lb_target_group_http_arns
   target_group_grpc_arns = local.lb_target_group_grpc_arns
 
-  task_role_arn = var.superblocks_agent_role_arn
-  additional_ecs_execution_task_policy_arns = concat(
-    var.additional_ecs_execution_task_policy_arns,
-    [aws_iam_policy.agent_key_policy.arn] # Append the Secrets Manager policy
-  )
+  task_role_arn                             = var.superblocks_agent_role_arn
+  additional_ecs_execution_task_policy_arns = var.superblocks_agent_key_from == null ? concat(var.additional_ecs_execution_task_policy_arns, [aws_iam_policy.agent_key_policy[1].arn]) : var.additional_ecs_execution_task_policy_arns
 
   container_port_http               = local.superblocks_http_port
   container_port_grpc               = local.superblocks_grpc_port
@@ -128,8 +133,6 @@ module "ecs" {
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_OTEL_COLLECTOR_HTTP_URL", "value" : "https://traces.intake.superblocks.com:443/v1/traces" },
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_EMITTER_REMOTE_INTAKE", "value" : "https://logs.intake.superblocks.com" },
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_INTAKE_METADATA_URL", "value" : "https://metadata.intake.superblocks.com" },
-      # { "name" : "SUPERBLOCKS_AGENT_KEY", "value" : "${var.superblocks_agent_key}" },
-      # { "name" : "SUPERBLOCKS_ORCHESTRATOR_SUPERBLOCKS_KEY", "value" : "${var.superblocks_agent_key}" },
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_FILE_SERVER_URL", "value" : "http://127.0.0.1:${local.superblocks_http_port}/v2/files" },
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_AGENT_HOST_URL", "value" : "${local.agent_host_url}" },
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_AGENT_ENVIRONMENT", "value" : "${var.superblocks_agent_environment}" },
@@ -137,11 +140,17 @@ module "ecs" {
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_DATA_DOMAIN", "value" : "${var.superblocks_agent_data_domain}" },
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_HANDLE_CORS", "value" : "${var.superblocks_agent_handle_cors}" },
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_QUOTAS_DEFAULT_API_TIMEOUT", "value" : "${var.superblocks_agent_quotas_default_api_timeout}" }
-  ], var.superblocks_agent_environment_variables)
-  container_secrets = [
-    { "name" : "SUPERBLOCKS_AGENT_KEY", "valueFrom" : aws_secretsmanager_secret.agent_key.arn },
-    { "name" : "SUPERBLOCKS_ORCHESTRATOR_SUPERBLOCKS_KEY", "valueFrom" : aws_secretsmanager_secret.agent_key.arn },
-  ]
+    ],
+    var.superblocks_agent_key_from == null ? [
+      { "name" : "SUPERBLOCKS_AGENT_KEY", "value" : "${var.superblocks_agent_key}" },
+      { "name" : "SUPERBLOCKS_ORCHESTRATOR_SUPERBLOCKS_KEY", "value" : "${var.superblocks_agent_key}" },
+    ] : [],
+    var.superblocks_agent_environment_variables
+  )
+  container_secrets = concat([
+    { "name" : "SUPERBLOCKS_AGENT_KEY", "valueFrom" : "${var.superblocks_agent_key_from}" },
+    { "name" : "SUPERBLOCKS_ORCHESTRATOR_SUPERBLOCKS_KEY", "valueFrom" : "${var.superblocks_agent_key_from}" },
+  ])
 
   container_cpu          = var.container_cpu
   container_memory       = var.container_memory
