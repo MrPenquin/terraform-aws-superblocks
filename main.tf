@@ -141,16 +141,15 @@ module "ecs" {
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_HANDLE_CORS", "value" : "${var.superblocks_agent_handle_cors}" },
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_QUOTAS_DEFAULT_API_TIMEOUT", "value" : "${var.superblocks_agent_quotas_default_api_timeout}" }
     ],
-    var.superblocks_agent_key_from == null ? [
-      { "name" : "SUPERBLOCKS_AGENT_KEY", "value" : "${var.superblocks_agent_key}" },
-      { "name" : "SUPERBLOCKS_ORCHESTRATOR_SUPERBLOCKS_KEY", "value" : "${var.superblocks_agent_key}" },
-    ] : [],
     var.superblocks_agent_environment_variables
   )
-  container_secrets = concat([
+  container_secrets = var.superblocks_agent_key_from == null ? [
+    { "name" : "SUPERBLOCKS_AGENT_KEY", "valueFrom" : "${aws_secretsmanager_secret.agent_key[1].arn}" },
+    { "name" : "SUPERBLOCKS_ORCHESTRATOR_SUPERBLOCKS_KEY", "valueFrom" : "${aws_secretsmanager_secret.agent_key[1].arn}" },
+    ] : [
     { "name" : "SUPERBLOCKS_AGENT_KEY", "valueFrom" : "${var.superblocks_agent_key_from}" },
     { "name" : "SUPERBLOCKS_ORCHESTRATOR_SUPERBLOCKS_KEY", "valueFrom" : "${var.superblocks_agent_key_from}" },
-  ])
+  ]
 
   container_cpu          = var.container_cpu
   container_memory       = var.container_memory
