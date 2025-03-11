@@ -22,7 +22,7 @@ resource "aws_secretsmanager_secret" "agent_key" {
 resource "aws_secretsmanager_secret_version" "agent_key" {
   count = var.superblocks_agent_key_from == null ? 1 : 0
 
-  secret_id                = aws_secretsmanager_secret.agent_key[1].id
+  secret_id                = aws_secretsmanager_secret.agent_key[0].id
   secret_string_wo         = var.superblocks_agent_key
   secret_string_wo_version = 1
 
@@ -45,7 +45,7 @@ resource "aws_iam_policy" "agent_key_policy" {
           "secretsmanager:GetSecretValue",
         ]
         Effect   = "Allow"
-        Resource = aws_secretsmanager_secret.agent_key[1].arn
+        Resource = aws_secretsmanager_secret.agent_key[0].arn
       }
     ]
   })
@@ -114,7 +114,7 @@ module "ecs" {
   target_group_grpc_arns = local.lb_target_group_grpc_arns
 
   task_role_arn                             = var.superblocks_agent_role_arn
-  additional_ecs_execution_task_policy_arns = var.superblocks_agent_key_from == null ? concat(var.additional_ecs_execution_task_policy_arns, [aws_iam_policy.agent_key_policy[1].arn]) : var.additional_ecs_execution_task_policy_arns
+  additional_ecs_execution_task_policy_arns = var.superblocks_agent_key_from == null ? concat(var.additional_ecs_execution_task_policy_arns, [aws_iam_policy.agent_key_policy[0].arn]) : var.additional_ecs_execution_task_policy_arns
 
   container_port_http               = local.superblocks_http_port
   container_port_grpc               = local.superblocks_grpc_port
@@ -144,8 +144,8 @@ module "ecs" {
     var.superblocks_agent_environment_variables
   )
   container_secrets = var.superblocks_agent_key_from == null ? [
-    { "name" : "SUPERBLOCKS_AGENT_KEY", "valueFrom" : "${aws_secretsmanager_secret.agent_key[1].arn}" },
-    { "name" : "SUPERBLOCKS_ORCHESTRATOR_SUPERBLOCKS_KEY", "valueFrom" : "${aws_secretsmanager_secret.agent_key[1].arn}" },
+    { "name" : "SUPERBLOCKS_AGENT_KEY", "valueFrom" : "${aws_secretsmanager_secret.agent_key[0].arn}" },
+    { "name" : "SUPERBLOCKS_ORCHESTRATOR_SUPERBLOCKS_KEY", "valueFrom" : "${aws_secretsmanager_secret.agent_key[0].arn}" },
     ] : [
     { "name" : "SUPERBLOCKS_AGENT_KEY", "valueFrom" : "${var.superblocks_agent_key_from}" },
     { "name" : "SUPERBLOCKS_ORCHESTRATOR_SUPERBLOCKS_KEY", "valueFrom" : "${var.superblocks_agent_key_from}" },
